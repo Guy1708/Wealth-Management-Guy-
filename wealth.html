@@ -1,0 +1,803 @@
+
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wealth Management App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Neutrals -->
+    <!-- Application Structure Plan: A single-page dashboard layout with distinct sections for portfolio overview, investment philosophy, risk management, and risk-return analysis. The primary view features an interactive doughnut chart next to a dynamic detail panel. Clicking a chart slice updates the panel with the corresponding asset's strategic role, advantages, and now, currency exposure. A bubble chart visualizes risk vs. return. Navigation is handled via smooth-scrolling top links. A new overall currency exposure chart is added at the bottom. This structure allows judges to explore quantitative allocation and qualitative rationale, analyze strategic positioning based on risk and return, and understand currency diversification. -->
+    <!-- Visualization & Content Choices:
+        Portfolio Allocation (Data from Report): Goal: Inform/Compare. Viz: Interactive Doughnut Chart (Chart.js/Canvas). Interaction: Click to update detail panel. Justification: Best visual for part-to-whole data, interactivity encourages exploration.
+        Asset Details (Qualitative Insights & Currency Exposure): Goal: Explain/Detail. Viz: Dynamically updated HTML content card (Vanilla JS) and a nested Doughnut Chart for currency exposure. Interaction: Content and nested chart update on main chart click. Justification: Presents details on demand, reducing cognitive load, and provides granular currency insights.
+        Investment Philosophy (Textual Content): Goal: Inform/Context. Viz: Styled static HTML sections (HTML/Tailwind). Interaction: Smooth scroll navigation. Justification: Foundational information presented clearly.
+        Risk Management (Analysis & Structure): Goal: Inform/Context. Viz: Styled static HTML sections (HTML/Tailwind). Interaction: Smooth scroll navigation. Justification: Foundational information presented clearly.
+        Risk-Return Analysis (Quantitative Data): Goal: Compare/Organize/Analyze. Viz: Interactive Bubble Chart (Chart.js/Canvas). Interaction: Hover for detailed tooltip. Justification: Effectively visualizes three dimensions (risk, return, percentage) for strategic analysis, providing a clear overview of asset positioning.
+        Total Expected Portfolio Return: Goal: Inform/Summarize. Viz: Key metric display (HTML/JS). Interaction: Static display. Justification: Provides an immediate high-level summary of portfolio performance expectation.
+        Overall Currency Exposure (New Feature): Goal: Summarize total currency diversification. Viz: Doughnut Chart (Chart.js/Canvas). Interaction: Static display. Justification: Provides a high-level summary of currency diversification across the entire portfolio.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Assistant', sans-serif;
+        }
+        html {
+            scroll-behavior: smooth;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px; /* Increased max-width for bubble chart */
+            margin-left: auto;
+            margin-right: auto;
+            height: 400px; /* Base height, adjust with media queries or use Tailwind for responsive heights */
+            max-height: 450px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 450px; /* Adjust height for larger screens */
+            }
+        }
+        /* Custom styles for table view */
+        .portfolio-table-container {
+            max-height: 400px; /* Limit height for scrollability */
+            overflow-y: auto; /* Enable vertical scrolling */
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* shadow-lg */
+            border: 1px solid #e5e7eb; /* border border-gray-200 */
+        }
+        .portfolio-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem; /* text-sm */
+        }
+        .portfolio-table th, .portfolio-table td {
+            padding: 0.75rem 1rem; /* p-3 px-4 */
+            text-align: right; /* text-right */
+            border-bottom: 1px solid #e5e7eb; /* border-b border-gray-200 */
+        }
+        .portfolio-table th {
+            background-color: #f9fafb; /* bg-gray-50 */
+            font-weight: 600; /* font-semibold */
+            color: #4b5563; /* text-gray-700 */
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .portfolio-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+        .portfolio-table tbody tr:hover {
+            background-color: #f3f4f6; /* hover:bg-gray-100 */
+        }
+    </style>
+</head>
+<body class="bg-stone-50 text-gray-800">
+
+    <header class="bg-white/80 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-center h-16">
+                <div class="flex flex-col items-center">
+                    <!-- Removed the image tag for the logo -->
+                    <h1 class="text-xl font-bold text-teal-700">Wealth Management App</h1>
+                    <p class="text-sm text-gray-500 opacity-75 mt-1">שלום שירי</p>
+                </div>
+                <!-- Removed quick navigation links -->
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+        <!-- Removed the "שלום שירי" div from here as it's now in the header -->
+
+        <section id="dashboard" class="mb-16">
+            <div class="text-center mb-10">
+                <h2 class="text-3xl md:text-4xl font-bold text-gray-900">סקירה כללית של התיק</h2>
+                <p class="mt-3 max-w-2xl mx-auto text-lg text-gray-500">
+                    זהו דשבורד אינטראקטיבי המציג את הקצאת הנכסים בתיק, המבוססת על אחוזים. לחצו על כל חלק בתרשים כדי לגלות את הרציונל האסטרטגי מאחורי כל רכיב.
+                </p>
+                <div class="mt-6 p-4 bg-teal-50 rounded-lg shadow-inner inline-block">
+                    <p class="text-xl font-semibold text-teal-800">
+                        תשואה צפויה כוללת מהתיק: <span id="totalExpectedReturn" class="font-bold"></span>
+                    </p>
+                </div>
+                <div class="mt-6">
+                    <button id="toggleViewBtn" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-full shadow-md transition duration-300 ease-in-out transform hover:scale-105">
+                        החלף תצוגה (תרשים / טבלה)
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-12 items-center">
+                <div class="lg:col-span-2">
+                    <div id="chart-view" class="chart-container h-80 md:h-96">
+                        <canvas id="portfolioChart"></canvas>
+                    </div>
+                    <div id="table-view" class="portfolio-table-container hidden">
+                        <table class="portfolio-table">
+                            <thead>
+                                <tr>
+                                    <th>נכס</th>
+                                    <th>אחוז מהתיק</th>
+                                    <th>שווי מוחלט (ש"ח)</th>
+                                    <th>תשואה צפויה (%)</th>
+                                    <th>רמת סיכון</th>
+                                </tr>
+                            </thead>
+                            <tbody id="portfolioTableBody">
+                                <!-- Table rows will be inserted here by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="lg:col-span-3">
+                    <div id="details-card" class="bg-white p-6 rounded-xl shadow-lg border border-gray-200 min-h-[300px] transition-all duration-300">
+                        <div id="details-placeholder" class="text-center flex flex-col justify-center items-center h-full">
+                             <svg class="w-12 h-12 text-teal-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16l-4-4m0 0l4-4m-4 4h18m-7 4l4 4m0 0l4-4m-4 4v-8"></path></svg>
+                            <h3 class="text-xl font-semibold text-gray-700">בחרו רכיב מהתרשים</h3>
+                            <p class="text-gray-500 mt-2">לחצו על פלח בתרשים העוגה כדי לראות פירוט על תפקידו ויתרונותיו בתיק.</p>
+                        </div>
+                        <div id="details-content" class="hidden">
+                            <h3 id="details-title" class="text-2xl font-bold text-teal-700 mb-4"></h3>
+                            <div class="space-y-4">
+                                <div>
+                                    <h4 class="font-semibold text-gray-800 text-lg">תפקיד בתיק:</h4>
+                                    <p id="details-role" class="text-gray-600"></p>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold text-gray-800 text-lg">יתרון מרכזי:</h4>
+                                    <p id="details-advantage" class="text-gray-600"></p>
+                                </div>
+                                <div>
+                                    <h4 class="font-semibold text-gray-800 text-lg">תשואה שנתית צפויה:</h4>
+                                    <p id="details-expected-return" class="text-gray-600"></p>
+                                </div>
+                                <div id="currency-chart-container" class="mt-6 hidden">
+                                    <h4 class="font-semibold text-gray-800 text-lg mb-2">חשיפה למטבעות:</h4>
+                                    <canvas id="currencyChart" class="max-h-64"></canvas>
+                                    <p id="no-currency-data-message" class="text-gray-500 text-sm mt-2 hidden">אין נתוני חשיפה למטבעות זמינים עבור פלח זה.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <hr class="my-16 border-gray-200">
+
+        <section id="philosophy" class="mb-16 scroll-mt-20">
+             <div class="text-center mb-10">
+                <h2 class="text-3xl md:text-4xl font-bold text-gray-900">פילוסופיית ההשקעה שלנו</h2>
+                <p class="mt-3 max-w-2xl mx-auto text-lg text-gray-500">
+                    אסטרטגיית ההשקעה שלנו מושתתת על שלושה עקרונות יסוד, המנחים כל החלטה ומבטיחים בניית תיק עמיד ומאוזן המותאם למטרות ארוכות טווח.
+                </p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100 text-center">
+                    <div class="text-teal-600 mb-4">
+                        <span class="text-4xl">🌐</span>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">גיוון</h3>
+                    <p class="text-gray-600">פיזור רחב של השקעות על פני סוגי נכסים שונים כדי למזער סיכונים.</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100 text-center">
+                    <div class="text-teal-600 mb-4">
+                        <span class="text-4xl">⏳</span>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">אופק ארוך טווח</h3>
+                    <p class="text-gray-600">התמקדות בצמיחה יציבה ובתשואות מתמשכות לאורך זמן.</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100 text-center">
+                    <div class="text-teal-600 mb-4">
+                         <span class="text-4xl">⚖️</span>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">איזון סיכון-תשואה</h3>
+                    <p class="text-gray-600">שילוב נכסים בע בעלי פרופילי סיכון שונים ליצירת תיק עמיד.</p>
+                </div>
+            </div>
+        </section>
+
+        <hr class="my-16 border-gray-200">
+
+        <!-- Removed the entire section for "אסטרטגיית ניהול הסיכונים" -->
+
+        <section id="risk-return-analysis" class="scroll-mt-20">
+            <div class="text-center mb-10">
+                <h2 class="text-3xl md:text-4xl font-bold text-gray-900">ניתוח סיכון-תשואה</h2>
+                <p class="mt-3 max-w-2xl mx-auto text-lg text-gray-500">
+                    גרף זה מציג את הקצאות התיק ביחס לרמת הסיכון וצפי התשואה השנתית של כל קטגוריה. גודל הבועה מייצג את אחוז ההשקעה הכולל שלה בתיק.
+                </p>
+            </div>
+            <div class="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-lg border border-gray-200">
+                <div class="chart-container h-[400px] md:h-[450px]">
+                    <canvas id="bubbleChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <hr class="my-16 border-gray-200">
+
+        <section id="overall-currency-exposure" class="scroll-mt-20">
+            <div class="text-center mb-10">
+                <h2 class="text-3xl md:text-4xl font-bold text-gray-900">חשיפת התיק הכוללת למטבעות</h2>
+                <p class="mt-3 max-w-2xl mx-auto text-lg text-gray-500">
+                    גרף זה מציג את החשיפה הכוללת של תיק ההשקעות למטבעות השונים, ומדגיש את פיזור הסיכונים המטבעי.
+                </p>
+            </div>
+            <div class="max-w-xl mx-auto bg-white p-8 rounded-xl shadow-lg border border-gray-200">
+                <div class="chart-container h-80 md:h-96">
+                    <canvas id="overallCurrencyChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+    </main>
+    
+    <footer class="bg-gray-800 text-white mt-16">
+        <div class="container mx-auto py-4 px-4 sm:px-6 lg:px-8 text-center">
+            <p>&copy; 2025 Wealth Management App. כל הזכויות שמורות.</p>
+        </div>
+    </footer>
+
+
+    <script>
+        const totalPortfolioValue = 90000000; // 90 million ILS
+
+        const currencyColors = {
+            'שקל': { color: '#4CAF50', symbol: '₪' }, // Green
+            'דולר': { color: '#2196F3', symbol: '$' }, // Blue
+            'אירו': { color: '#FFC107', symbol: '€' }, // Amber
+            'אחר': { color: '#9E9E9E', symbol: '' } // Gray
+        };
+
+        const portfolioData = [
+            {
+                label: 'ביטקוין',
+                value: 4, // Changed from 7 to 4
+                role: 'מרכיב צמיחה אגרסיבי, חשיפה לנכס דיגיטלי בעל פוטנציאל תשואה גבוה.',
+                advantage: 'פוטנציאל רווחים משמעותיים בתמורה לסיכון גבוה.',
+                color: '#F7931A', // Bitcoin orange
+                risk: 5, // Very High
+                expectedReturn: 30, // Updated
+                currencyExposure: [{ currency: 'דולר', percentage: 100, color: currencyColors['דולר'].color }]
+            },
+            {
+                label: 'קרן חוב',
+                value: 21, // Changed from 20 to 21
+                role: 'מספקת יציבות והכנסה שוטפת, ומהוות מרכיב הגנתי בתיק.',
+                advantage: 'מפחיתה תנודתיות כוללת ומספקת בסיס יציב.',
+                color: '#0D9488', // Teal-600
+                risk: 2.5, // Swapped with קרנות תשתית
+                expectedReturn: 7, // Updated
+                currencyExposure: [
+                    { currency: 'שקל', percentage: 55, color: currencyColors['שקל'].color },
+                    { currency: 'אירו', percentage: 20, color: currencyColors['אירו'].color },
+                    { currency: 'דולר', percentage: 20, color: currencyColors['דולר'].color },
+                    { currency: 'אחר', percentage: 5, color: currencyColors['אחר'].color }
+                ]
+            },
+            {
+                label: 'מזומן',
+                value: 1, // Calculated as remaining 1%
+                role: 'שומר על נזילות לצרכים בלתי צפויים או לניצול הזדמנויות טקטיות.',
+                advantage: 'גמישות תפעולית וביטחון פיננסי, ללא סיכון תנודתיות שוק.',
+                color: '#9CA3AF', // Gray-400
+                risk: 0, // Changed to 0
+                expectedReturn: 0, // Changed to 0
+                currencyExposure: [{ currency: 'שקל', percentage: 100, color: currencyColors['שקל'].color }]
+            },
+            {
+                label: 'קרן הון סיכון',
+                value: 10, // 10%
+                role: 'מנוע הצמיחה של התיק, מכוון לחברות בעלות פוטנציאל גבוה בשלבים מוקדמים.',
+                advantage: 'פוטנציאל לתשואות משמעותיות ואקספוננציאליות.',
+                color: '#F97316', // Orange-500
+                risk: 5, // Very High
+                expectedReturn: 20, // Updated
+                currencyExposure: [
+                    { currency: 'שקל', percentage: 40, color: currencyColors['שקל'].color },
+                    { currency: 'דולר', percentage: 50, color: currencyColors['דולר'].color },
+                    { currency: 'אירו', percentage: 10, color: currencyColors['אירו'].color }
+                ]
+            },
+            {
+                label: 'קרנות תשתית',
+                value: 22, // Changed from 23 to 22
+                role: 'מציעות תשואות יציבות וארוכות טווח, לרוב קשורות לשירותים חיוניים.',
+                advantage: 'הגנה מפני אינפלציה ופוטנסיאל צמיחה יציב.',
+                color: '#2DD4BF', // Teal-400
+                risk: 2, // Swapped with קרן חוב
+                expectedReturn: 7, // Updated
+                currencyExposure: [
+                    { currency: 'דולר', percentage: 30, color: currencyColors['דולר'].color },
+                    { currency: 'אירו', percentage: 20, color: currencyColors['אירו'].color },
+                    { currency: 'שקל', percentage: 40, color: currencyColors['שקל'].color },
+                    { currency: 'אחר', percentage: 10, color: currencyColors['אחר'].color }
+                ]
+            },
+            {
+                label: 'אגח',
+                value: 15, // Changed from 10 to 15
+                role: 'נכס חוב המציע יציבות יחסית והכנסה קבועה, ומשמש כרכיב מגן בתיק.',
+                advantage: 'מגוון את תיק החוב ומספק מקור הכנסה נוסף עם סיכון נמוך יחסית.',
+                color: '#60A5FA', // Blue-400
+                risk: 1, // Changed to 1
+                expectedReturn: 4, // Updated
+                currencyExposure: [
+                    { currency: 'שקל', percentage: 50, color: currencyColors['שקל'].color },
+                    { currency: 'דולר', percentage: 25, color: currencyColors['דולר'].color },
+                    { currency: 'אירו', percentage: 25, color: currencyColors['אירו'].color }
+                ]
+            },
+            {
+                label: 'סחיר',
+                value: 25, // 25%
+                role: 'החלק הנזיל בתיק ישמש כמרכיב עם פוטנציאל תשואה גבוהה, וגם להשלמת התזרים ולהחזר ההלוואה.', // Updated role
+                advantage: 'מציעות גמישות ונגישות מיידית לניצול הזדמנויות בשוק הציבורי ולנזילות הכסף למקרה הצורך.', // Updated advantage
+                color: '#14B8A6', // Teal-500
+                risk: 4, // Medium-High
+                expectedReturn: 10, // Updated
+                currencyExposure: [
+                    { currency: 'שקל', percentage: 55, color: currencyColors['שקל'].color },
+                    { currency: 'דולר', percentage: 35, color: currencyColors['דולר'].color },
+                    { currency: 'אירו', percentage: 10, color: currencyColors['אירו'].color }
+                ]
+            },
+            {
+                label: 'קרן פילנתרופית',
+                value: 2, // 2%
+                role: 'מוקדשות לנתינה פילנתרופית, ומשקפות את מחויבותנו לאחריות חברתית.',
+                advantage: 'תרומה לקהילה וחיזוק ערכי הארגון, עם תשואה צנועה.',
+                color: '#A78BFA', // Violet-400
+                risk: 0, // Changed to 0
+                expectedReturn: 0, // Changed to 0
+                currencyExposure: [{ currency: 'שקל', percentage: 100, color: currencyColors['שקל'].color }]
+            }
+        ];
+
+        // Ensure total percentage sums to 100 and calculate absolute values
+        let currentTotalPercentage = 0;
+        portfolioData.forEach(item => {
+            currentTotalPercentage += item.value;
+            item.absoluteValue = (item.value / 100) * totalPortfolioValue; // Calculate absolute value for each item
+        });
+
+        if (currentTotalPercentage !== 100) {
+            console.warn(`Total percentage is ${currentTotalPercentage}%, not 100%. Adjusting "מזומן" to compensate.`);
+            const cashIndex = portfolioData.findIndex(item => item.label === 'מזומן');
+            if (cashIndex !== -1) {
+                portfolioData[cashIndex].value += (100 - currentTotalPercentage);
+                portfolioData[cashIndex].absoluteValue = (portfolioData[cashIndex].value / 100) * totalPortfolioValue;
+            } else {
+                console.error("Cannot balance portfolio to 100% as 'מזומן' is not found and total is not 100.");
+            }
+        }
+
+        // Calculate Total Expected Return for the portfolio (for the top display)
+        let weightedExpectedReturnOverall = 0;
+        portfolioData.forEach(item => {
+            weightedExpectedReturnOverall += (item.value / 100) * item.expectedReturn;
+        });
+        document.getElementById('totalExpectedReturn').textContent = `${weightedExpectedReturnOverall.toFixed(1)}%`;
+
+
+        // Doughnut Chart
+        const ctxDoughnut = document.getElementById('portfolioChart').getContext('2d');
+        const portfolioChart = new Chart(ctxDoughnut, {
+            type: 'doughnut',
+            data: {
+                labels: portfolioData.map(item => item.label),
+                datasets: [{
+                    label: 'הקצאת תיק',
+                    data: portfolioData.map(item => item.value), // Use value directly as percentage
+                    backgroundColor: portfolioData.map(item => item.color),
+                    borderColor: '#ffffff',
+                    borderWidth: 3,
+                    hoverOffset: 16
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '60%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            font: {
+                                family: 'Assistant',
+                                size: 14
+                            },
+                            padding: 20
+                        }
+                    },
+                    tooltip: {
+                        bodyFont: {
+                            family: 'Assistant'
+                        },
+                        titleFont: {
+                             family: 'Assistant'
+                        },
+                        callbacks: {
+                            label: function(context) {
+                                const dataIndex = context.dataIndex;
+                                const item = portfolioData[dataIndex];
+                                return [
+                                    `${context.label}:`,
+                                    `סכום: ${item.absoluteValue.toLocaleString('he-IL', { style: 'currency', currency: 'ILS', minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,
+                                    `אחוז מהתיק: ${item.value}%`,
+                                    `תשואה צפויה: ${item.expectedReturn}%`
+                                ];
+                            }
+                        }
+                    }
+                },
+                animation: {
+                    animateScale: true,
+                    animateRotate: true
+                }
+            }
+        });
+
+        const detailsPlaceholder = document.getElementById('details-placeholder');
+        const detailsContent = document.getElementById('details-content');
+        const detailsTitle = document.getElementById('details-title');
+        const detailsRole = document.getElementById('details-role');
+        const detailsAdvantage = document.getElementById('details-advantage');
+        const detailsExpectedReturn = document.getElementById('details-expected-return');
+        const currencyChartContainer = document.getElementById('currency-chart-container');
+        const noCurrencyDataMessage = document.getElementById('no-currency-data-message');
+
+        let currencyChartInstance = null; // To store the Chart.js instance for currency data
+
+        function updateDetails(index) {
+            if (index < 0 || index >= portfolioData.length) {
+                detailsPlaceholder.style.display = 'flex';
+                detailsContent.style.display = 'none';
+                return;
+            };
+
+            const item = portfolioData[index];
+            detailsTitle.textContent = item.label;
+            detailsRole.textContent = item.role;
+            detailsAdvantage.textContent = item.advantage;
+            detailsExpectedReturn.textContent = `${item.expectedReturn}%`;
+
+            detailsPlaceholder.style.display = 'none';
+            detailsContent.style.display = 'block';
+
+            // Update Currency Chart
+            if (currencyChartInstance) {
+                currencyChartInstance.destroy(); // Destroy previous instance
+            }
+
+            if (item.currencyExposure && item.currencyExposure.length > 0) {
+                currencyChartContainer.classList.remove('hidden');
+                noCurrencyDataMessage.classList.add('hidden');
+
+                const ctxCurrency = document.getElementById('currencyChart').getContext('2d');
+                currencyChartInstance = new Chart(ctxCurrency, {
+                    type: 'doughnut',
+                    data: {
+                        labels: item.currencyExposure.map(cur => cur.currency),
+                        datasets: [{
+                            data: item.currencyExposure.map(cur => cur.percentage),
+                            backgroundColor: item.currencyExposure.map(cur => cur.color),
+                            borderColor: '#ffffff',
+                            borderWidth: 2,
+                            hoverOffset: 8
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '50%',
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    font: {
+                                        family: 'Assistant',
+                                        size: 12
+                                    },
+                                    padding: 10
+                                }
+                            },
+                            tooltip: {
+                                bodyFont: {
+                                    family: 'Assistant'
+                                },
+                                titleFont: {
+                                     family: 'Assistant'
+                                },
+                                callbacks: {
+                                    label: function(context) {
+                                        const percentage = context.parsed.toFixed(1);
+                                        const currencyLabel = context.label;
+                                        const currencySymbol = currencyColors[currencyLabel] ? currencyColors[currencyLabel].symbol : '';
+                                        return `${currencyLabel} ${currencySymbol}: ${percentage}%`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            } else {
+                currencyChartContainer.classList.add('hidden');
+                noCurrencyDataMessage.classList.remove('hidden');
+            }
+        }
+
+        document.getElementById('portfolioChart').onclick = (evt) => {
+            const activePoints = portfolioChart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+            if (activePoints.length) {
+                const firstPoint = activePoints[0];
+                const index = firstPoint.index;
+                updateDetails(index);
+            }
+        };
+
+        // Bubble Chart
+        const ctxBubble = document.getElementById('bubbleChart').getContext('2d');
+
+        // Calculate average risk and average expected return for the ENTIRE portfolio
+        // This ensures consistency with the total expected return displayed at the top.
+        let totalWeightedRiskForAverage = 0;
+        let totalWeightedExpectedReturnForAverage = 0;
+        let totalPercentageForAverage = 0;
+
+        portfolioData.forEach(item => {
+            totalWeightedRiskForAverage += item.risk * item.value; // Weighted average
+            totalWeightedExpectedReturnForAverage += item.expectedReturn * item.value; // Weighted average
+            totalPercentageForAverage += item.value; // Sum of percentages
+        });
+
+        const averageRisk = totalWeightedRiskForAverage / totalPercentageForAverage;
+        const averageExpectedReturn = totalWeightedExpectedReturnForAverage / totalPercentageForAverage;
+
+        const bubbleChart = new Chart(ctxBubble, {
+            type: 'bubble',
+            data: {
+                datasets: [{
+                    label: 'ניתוח סיכון-תשואה',
+                    // Filter out 'קרן פילנתרופית' and 'מזומן' for display purposes only
+                    data: portfolioData.filter(item => item.label !== 'קרן פילנתרופית' && item.label !== 'מזומן').map(item => ({
+                        x: item.risk,
+                        y: item.expectedReturn,
+                        r: item.value * 0.5, // Use value directly as percentage for radius scaling
+                        label: item.label // Store label for tooltip
+                    })),
+                    backgroundColor: portfolioData.filter(item => item.label !== 'קרן פילנתרופית' && item.label !== 'מזומן').map(item => item.color + 'B3'), // Add transparency
+                    borderColor: portfolioData.filter(item => item.label !== 'קרן פילנתרופית' && item.label !== 'מזומן').map(item => item.color),
+                    borderWidth: 2
+                },
+                {
+                    label: 'ממוצע התיק', // Label for the average point
+                    data: [{
+                        x: averageRisk,
+                        y: averageExpectedReturn,
+                        r: 10, // Fixed radius for the average point to make it stand out
+                        label: 'ממוצע התיק'
+                    }],
+                    backgroundColor: '#FF0000', // Red color for the average point
+                    borderColor: '#CC0000',
+                    borderWidth: 3,
+                    pointStyle: 'star' // Star shape for the average point
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        type: 'linear',
+                        position: 'bottom',
+                        title: {
+                            display: true,
+                            text: 'רמת סיכון (1=נמוך מאוד, 5=גבוה מאוד)',
+                            font: {
+                                family: 'Assistant',
+                                size: 16
+                            }
+                        },
+                        ticks: {
+                            stepSize: 1,
+                            font: {
+                                family: 'Assistant'
+                            }
+                        },
+                        min: 0,
+                        max: 6
+                    },
+                    y: {
+                        type: 'linear',
+                        title: {
+                            display: true,
+                            text: 'צפי תשואה שנתית (%)',
+                            font: {
+                                family: 'Assistant',
+                                size: 16
+                            }
+                        },
+                        ticks: {
+                            stepSize: 5, // Adjusted step size for percentage returns
+                            font: {
+                                family: 'Assistant'
+                            }
+                        },
+                        min: 0,
+                        max: 35 // Adjusted max for new returns
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true, // Display legend for bubble chart
+                        labels: {
+                            font: {
+                                family: 'Assistant',
+                                size: 14
+                            },
+                            padding: 20,
+                            filter: function(legendItem, chartData) {
+                                // Only show the legend for "ממוצע התיק" and hide "ניתוח סיכון-תשואה"
+                                return legendItem.text === 'ממוצע התיק';
+                            }
+                        }
+                    },
+                    tooltip: {
+                        bodyFont: {
+                            family: 'Assistant'
+                        },
+                        titleFont: {
+                             family: 'Assistant'
+                        },
+                        callbacks: {
+                            label: function(context) {
+                                const rawData = context.raw;
+                                if (rawData.label === 'ממוצע התיק') {
+                                    return [
+                                        `נקודת ממוצע התיק:`,
+                                        `סיכון ממוצע: ${rawData.x.toFixed(2)}`,
+                                        `תשואה ממוצעת: ${rawData.y.toFixed(2)}%`
+                                    ];
+                                } else {
+                                    // Find the original item from portfolioData using the label stored in context.raw
+                                    const item = portfolioData.find(dataItem => dataItem.label === rawData.label);
+
+                                    if (!item) return ''; // Should not happen if data is correctly filtered
+
+                                    return [
+                                        `קטגוריה: ${item.label}`,
+                                        `סיכון: ${item.risk}`,
+                                        `תשואה צפויה: ${item.expectedReturn}%`,
+                                        `אחוז מהתיק: ${item.value}%`,
+                                        `סכום: ${item.absoluteValue.toLocaleString('he-IL', { style: 'currency', currency: 'ILS', minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+                                    ];
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Overall Currency Exposure Chart
+        const overallCurrencyExposure = {};
+        portfolioData.forEach(portfolioItem => {
+            if (portfolioItem.currencyExposure) {
+                portfolioItem.currencyExposure.forEach(currencyItem => {
+                    const weightedPercentage = (portfolioItem.value / 100) * currencyItem.percentage;
+                    if (overallCurrencyExposure[currencyItem.currency]) {
+                        overallCurrencyExposure[currencyItem.currency] += weightedPercentage;
+                    } else {
+                        overallCurrencyExposure[currencyItem.currency] = weightedPercentage;
+                    }
+                });
+            }
+        });
+
+        const overallCurrencyLabels = Object.keys(overallCurrencyExposure);
+        const overallCurrencyData = Object.values(overallCurrencyExposure);
+        const overallCurrencyBackgroundColors = overallCurrencyLabels.map(label => currencyColors[label] ? currencyColors[label].color : '#CCCCCC'); // Fallback color
+
+        const ctxOverallCurrency = document.getElementById('overallCurrencyChart').getContext('2d');
+        const overallCurrencyChart = new Chart(ctxOverallCurrency, {
+            type: 'doughnut',
+            data: {
+                labels: overallCurrencyLabels,
+                datasets: [{
+                    data: overallCurrencyData,
+                    backgroundColor: overallCurrencyBackgroundColors,
+                    borderColor: '#ffffff',
+                    borderWidth: 3,
+                    hoverOffset: 16
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '60%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            font: {
+                                family: 'Assistant',
+                                size: 14
+                            },
+                            padding: 20
+                        }
+                    },
+                    tooltip: {
+                        bodyFont: {
+                            family: 'Assistant'
+                        },
+                        titleFont: {
+                             family: 'Assistant'
+                        },
+                        callbacks: {
+                            label: function(context) {
+                                const percentage = context.parsed.toFixed(1);
+                                const currencyLabel = context.label;
+                                const currencySymbol = currencyColors[currencyLabel] ? currencyColors[currencyLabel].symbol : '';
+                                return `${currencyLabel} ${currencySymbol}: ${percentage}%`;
+                            }
+                        }
+                    }
+                },
+                animation: {
+                    animateScale: true,
+                    animateRotate: true
+                }
+            }
+        });
+
+        // Function to populate the table
+        function populatePortfolioTable() {
+            const tableBody = document.getElementById('portfolioTableBody');
+            tableBody.innerHTML = ''; // Clear existing rows
+
+            portfolioData.forEach(item => {
+                const row = tableBody.insertRow();
+                row.innerHTML = `
+                    <td>${item.label}</td>
+                    <td>${item.value}%</td>
+                    <td>${item.absoluteValue.toLocaleString('he-IL', { style: 'currency', currency: 'ILS', minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
+                    <td>${item.expectedReturn}%</td>
+                    <td>${item.risk}</td>
+                `;
+            });
+        }
+
+        // Toggle view functionality
+        const toggleViewBtn = document.getElementById('toggleViewBtn');
+        const chartView = document.getElementById('chart-view');
+        const tableView = document.getElementById('table-view');
+        let isChartView = true;
+
+        toggleViewBtn.addEventListener('click', () => {
+            if (isChartView) {
+                chartView.classList.add('hidden');
+                tableView.classList.remove('hidden');
+                populatePortfolioTable(); // Populate table when switching to table view
+                toggleViewBtn.textContent = 'החלף תצוגה (טבלה / תרשים)';
+            } else {
+                tableView.classList.add('hidden');
+                chartView.classList.remove('hidden');
+                toggleViewBtn.textContent = 'החלף תצוגה (תרשים / טבלה)';
+            }
+            isChartView = !isChartView;
+        });
+
+        // Initialize with first item or placeholder
+        // updateDetails(0); // Optional: uncomment to show first item by default
+    </script>
+
+</body>
+</html>
